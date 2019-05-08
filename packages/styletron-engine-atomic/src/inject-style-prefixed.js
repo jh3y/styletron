@@ -10,6 +10,19 @@ import type {StyleObject} from "styletron-standard";
 
 import {MultiCache} from "./cache.js";
 
+// Returns a string value that is a key of the matching supports brackets
+// For a property. This is important where a component may have
+// Multiple root level @supports brackets for different things
+const isSupportedKey = (key, supports) => {
+  let result = "";
+  for (const [condition, block] of Object.entries(supports)) {
+    if (Object.keys(block).indexOf(key) !== -1) {
+      result += condition;
+    }
+  }
+  return result.trim() === "" ? false : result;
+};
+
 export default function injectStylePrefixed(
   styleCache: MultiCache<{pseudo: string, block: string}>,
   styles: StyleObject,
@@ -20,13 +33,14 @@ export default function injectStylePrefixed(
   /**
    * Look ahead for @supports object and store it
    */
+  const supported: Object = {};
   const supportsMap: Object = {...supports};
-  let supported: Object = {};
-  let supportsCondition;
+  // let supportsCondition;
   for (const key in styles) {
     if (key.includes("@supports")) {
-      supportsCondition = key;
-      supported = (styles[key]: any);
+      // This only gets used in this scope so it doesn't matter, we just use it for look up?
+      // Need keys for multiple @supports declarations
+      supported[`${media}${pseudo}${key}`] = styles[key];
     }
   }
   const cache = styleCache.getCache(media);
@@ -37,27 +51,36 @@ export default function injectStylePrefixed(
    */
   for (const originalKey in styles) {
     const originalVal = styles[originalKey];
-    const supportedKey =
-      supported && Object.keys(supported).indexOf(originalKey) !== -1;
+    // SUPPORTSCONDITION IS IF ORIGINALKEY INCLUDES @SUPPORTSS????
+
+    // Check if this key is one that's supported
+    // It could be supported in more than one root level supports
+    const supportedKey = isSupportedKey(originalKey, supported);
+
     if (typeof originalVal !== "object") {
       // Primitive value
       if (__DEV__) {
         validateValueType(originalVal);
       }
-      const hyphenatedKey = hyphenate(originalKey);
-      const propValPair = `${hyphenatedKey}:${((originalVal: any): string)}`;
+      const propValPair = `${hyphenate(
+        originalKey,
+      )}:${((originalVal: any): string)}`;
+
+      // originalKey or pseudo here... will be the key prefixed with media for supported?
 
       let key = supportedKey
-        ? `${pseudo}${((supportsCondition: any): string)}${hyphenatedKey}:${originalVal}:${hyphenatedKey}:${((supported[
-            ((originalKey: any): string)
-          ]: any): string)}`
+        ? `${pseudo}${supportedKey}${hyphenate(
+            originalKey,
+          )}:${originalVal}:${hyphenate(originalKey)}:${
+            supported[supportedKey][originalKey]
+          }`
         : `${pseudo}${propValPair}`;
 
       if (supportedKey) {
         // Create a map of the nested @supports propValPairs against the cache key
         // This is so the cachedId can be passed along for rule insertion
         supportsMap[
-          ((`${hyphenatedKey}:${supported[originalKey]}`: any): string)
+          `${hyphenate(originalKey)}:${supported[supportedKey][originalKey]}`
         ] = {
           key,
         };
