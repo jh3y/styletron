@@ -52,6 +52,7 @@ import {
   declarationsToBlock,
   keyframesToBlock,
   fontFaceBlockToRule,
+  supportsBlockToRule,
 } from "../css.js";
 
 type hydrateT =
@@ -80,9 +81,14 @@ class StyletronClient implements StandardEngine {
 
     const styleIdGenerator = new SequentialIDGenerator(opts.prefix);
     const onNewStyle = (cache, id, value) => {
-      const {pseudo, block} = value;
+      const {cachedId, pseudo, block} = value;
       const sheet: CSSStyleSheet = (this.styleElements[cache.key].sheet: any);
-      const rule = styleBlockToRule(atomicSelector(id, pseudo), block);
+      let rule;
+      if (pseudo.includes("@supports")) {
+        rule = supportsBlockToRule(pseudo, cachedId, block);
+      } else {
+        rule = styleBlockToRule(atomicSelector(id, pseudo), block);
+      }
       try {
         sheet.insertRule(rule, sheet.cssRules.length);
       } catch (e) {

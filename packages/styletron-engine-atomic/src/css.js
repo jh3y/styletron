@@ -13,6 +13,14 @@ export function atomicSelector(id: string, pseudo: string): string {
   return selector;
 }
 
+export function supportsBlockToRule(
+  pseudo: string,
+  selector: string,
+  block: string,
+): string {
+  return `${pseudo}{.${selector}{${block}}}`;
+}
+
 export function keyframesToBlock(keyframes: {[string]: Object}): string {
   if (__DEV__) {
     validateKeyframesObject(keyframes);
